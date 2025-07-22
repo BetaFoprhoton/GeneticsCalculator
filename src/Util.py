@@ -6,3 +6,6 @@ def unifiedDenominator(input_dict: dict) -> dict:
     for name, value in input_dict.items():
         result[name] = Fraction(value, deno_sum)
     return result
+
+def createOrAdd(element, rdict: dict):
+    pass

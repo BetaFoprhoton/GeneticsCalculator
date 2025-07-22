@@ -61,6 +61,7 @@ class GeneticsEnv:
         self.alleles_dom_info = [] #相对显隐性关系
         self.alleles_group_info = {} #等位基因关系
         self.lethal_func_info = []
+        self.pheno_func_info = []
         self.group_count = 0
 
     def printAllelesInfo(self):
@@ -83,6 +84,15 @@ class GeneticsEnv:
 
     def defGenotypeLethal(self, *func):
         self.lethal_func_info += func
+
+    def defPhenotypeTransLaw(self, *func):
+        self.pheno_func_info += func
+
+    def toPhenotype(self, str_gene_list: list[str]) -> tuple[str]:
+        pheno_list = []
+        for pheno_func in self.pheno_func_info:
+            pheno_list.append(pheno_func(str_gene_list))
+        return tuple(sorted(pheno_list))
 
     def genGenotypeLethanlChance(self, str_gene_list: list[str]) -> float:
         shrink = Fraction(1, 1)
@@ -128,6 +138,14 @@ class GeneticsEnv:
                     str_geno += allele
         return str_geno
 
+    def toPhenotypeString(self, genotype: Genotype) -> str:
+        gene_list = []
+        for gene in genotype.genes:
+            gene_list += gene.alleles
+        if gene_list == []:
+            return "Unknown"
+        return "".join(self.toGenotype(gene_list))
+
 class Population:
     genotype_dict = {}
     def __init__(self, genotype_dict):
@@ -139,11 +157,27 @@ class Population:
             geno_str = env.toGenotypeString(env.toGenotype(geno_item[0]))
             new_dict[geno_str] = geno_item[1]
         return new_dict
+
+    def transStrPhenotype(self, env: GeneticsEnv) -> dict:
+        pheno_dict = {}
+        for geno_item in self.genotype_dict.items():
+            phenotype = env.toPhenotype(geno_item[0])
+            phenotype = "".join(phenotype)
+            if pheno_dict.get(phenotype, "null") == "null":
+                pheno_dict[phenotype] = geno_item[1]
+            else:
+                pheno_dict[phenotype] += geno_item[1]
+        return pheno_dict
     
     def printGenotypeInfo(self, env: GeneticsEnv):
         geno_dict = self.transStrGenotype(env)
         for genotype in geno_dict.items():
             print(genotype[0], ": ", genotype[1].numerator, "/", genotype[1].denominator, end = "\t")
+
+    def printPhenotypeInfo(self, env: GeneticsEnv):
+        pheno_dict = self.transStrPhenotype(env)
+        for phenotype in pheno_dict.items():
+            print(phenotype[0], ": ", phenotype[1].numerator, "/", phenotype[1].denominator, end = "\t")
 
 def alt_sort_key(s) -> tuple:
     # 0 - 大写字母, 1 - 小写字母
