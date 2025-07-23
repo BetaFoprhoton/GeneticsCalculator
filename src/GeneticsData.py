@@ -1,16 +1,17 @@
 from fractions import Fraction
 from itertools import product
 from functools import *
+from enum import Enum
 import functools
 from operator import mul
 from Util import *
 
 class Gene:
-    def __init__(self, alleles: list[str], name: str = "", description: str = ""):
+    def __init__(self, *alleles: str, name: str = "", description: str = ""):
         self.name = name
         self.alleles = alleles
         
-    def gen(self) -> dict:   
+    def gen(self) -> dict:
         group = {}
         for allele in self.alleles:
             proportion = 1 #暂时
@@ -21,9 +22,17 @@ class Gene:
             else:
                 group[allele] += proportion
         return unifiedDenominator(group)
+
+class Gender(Enum):
+    Female = "Female"
+    Male = "Male"
+    Unknown = "Unknown"
         
+class GenderGene(Gene):
+    pass
+
 class Genotype:
-    def __init__(self, genes: tuple[Gene]):
+    def __init__(self, *genes: Gene):
         self.genes = genes
     
     def __eq__(self, other):
@@ -72,7 +81,7 @@ class GeneticsEnv:
                 print(allele, end = " ")
             print(")", end = "\n")
 
-    def defAllele(self, alleles: tuple[str]):
+    def defAllele(self, *alleles: str):
         count = 0
         dom_dict = {}
         for allele in alleles:
@@ -81,12 +90,18 @@ class GeneticsEnv:
             count += 1
         self.alleles_dom_info.append(dom_dict)
         self.group_count += 1
+    
+    def defGenderAllele(self, *tuple):
+        pass
 
     def defGenotypeLethal(self, *func):
         self.lethal_func_info += func
 
-    def defPhenotypeTransLaw(self, *func):
+    def defPhenotypeTransLaw(self, *func, priority = 0):
         self.pheno_func_info += func
+
+    def defGenderJudgmentLaw(self, *func, priority = 0):
+        pass
 
     def toPhenotype(self, str_gene_list: list[str]) -> tuple[str]:
         pheno_list = []
@@ -123,15 +138,14 @@ class GeneticsEnv:
         result = []
         for group in grouped_geno_list:
             if (group != []):
-                result.append(Gene(sorted(group, key = functools.cmp_to_key(self.domCmp))))
-        return Genotype(result)
+                result.append(Gene(*sorted(group, key = functools.cmp_to_key(self.domCmp))))
+        return Genotype(*result)
 
     def toGenotypeString(self, genotype: Genotype) -> str:
         str_geno = ""
         for gene in genotype.genes:
             #print(gene.alleles)
             for allele in gene.alleles:
-                #print(allele, end = " ")
                 if len(allele) > 1:
                     str_geno += "(" + allele + ")"
                 else:
@@ -167,6 +181,7 @@ class Population:
                 pheno_dict[phenotype] = geno_item[1]
             else:
                 pheno_dict[phenotype] += geno_item[1]
+        
         return pheno_dict
     
     def printGenotypeInfo(self, env: GeneticsEnv):

@@ -3,24 +3,18 @@ from Util import *
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
-from matplotlib.font_manager import FontProperties
+import Visualization
 
-gene1 = Gene(
-    name = "种子颜色",
-    alleles = ["Y", "y"]
-)
-gene2 = Gene(
-    name = "种子形状",
-    alleles = ["R", "r"]
-)
-geno1 = Genotype([gene1, gene2])
+gene1 = Gene("Y", "y")
+gene2 = Gene("R", "r")
+geno1 = Genotype(gene1, gene2)
 
 #print(geno1.genGamete())
 #print(test_cross_geno.genGamete())
 
 env = GeneticsEnv()
-env.defAllele(("Y", "y"))
-env.defAllele(("R", "r"))
+env.defAllele("Y", "y")
+env.defAllele("R", "r")
 def lethanl1(geno_str_list) -> Fraction:
     if "a" in geno_str_list and "b" in geno_str_list:
         return Fraction(1, 2)
@@ -40,15 +34,36 @@ def pheno2(pheno_str_list) -> str:
 #env.defGenotypeLethal(lethanl1)
 env.defPhenotypeTransLaw(pheno1, pheno2)
 crowd1 = selfing(geno1, env)
-print(crowd1.genotype_dict)
-print(crowd1.transStrPhenotype(env))
+#print(crowd1.genotype_dict)
+#print(crowd1.transStrPhenotype(env))
 #crowd1.printGenotypeInfo(env)
+
 crowd1.printPhenotypeInfo(env)
-crowd = crowd1.transStrPhenotype(env)
+crowd1.printGenotypeInfo(env)
+pheno_dict = crowd1.transStrPhenotype(env)
 
+#Visualization.ShowGrapgh(pheno_dict)
 
-a = sorted([f.name for f in matplotlib.font_manager.fontManager.ttflist])
+#print(Gender.Female == Gender.Male)
 
-plt.rcParams['font.family'] = 'Alibaba PuHuiTi 2.0'  # 替换为你选择的字体
-plt.bar(crowd.keys(), crowd.values())
-plt.show()
+env = GeneticsEnv()
+env.defAllele("A", "a")
+env.defAllele("X", "Y")
+def pheno_gender(str_list):
+    if str_list.count("X") == 2:
+        return Gender.Female.value
+    elif str_list.count("X") == 1 and str_list.count("Y") == 1:
+        return Gender.Male.value
+    else:
+        return Gender.Unknown.value
+def pheno_normal(str_list):
+    if "A" in str_list:
+        return "显性"
+    else:
+        return "隐性"
+env.defPhenotypeTransLaw(pheno_gender)
+env.defPhenotypeTransLaw(pheno_normal)
+gender_fe = Genotype(Gene("A", "a"), Gene("X", "X"))
+gender_ma = Genotype(Gene("A", "a"), Gene("X", "Y"))
+crowd_gender = cross(gender_fe, gender_ma, env)
+Visualization.ShowGrapgh(crowd_gender.transStrPhenotype(env))
