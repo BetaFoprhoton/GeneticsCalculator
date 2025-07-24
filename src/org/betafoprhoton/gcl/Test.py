@@ -1,4 +1,4 @@
-from GeneticsData import *
+from GeneticsCalculatorLib import *
 from Util import *
 import matplotlib.pyplot as plt
 import matplotlib
@@ -66,4 +66,13 @@ env.defPhenotypeTransLaw(pheno_normal)
 gender_fe = Genotype(Gene("A", "a"), Gene("X", "X"))
 gender_ma = Genotype(Gene("A", "a"), Gene("X", "Y"))
 crowd_gender = cross(gender_fe, gender_ma, env)
-Visualization.ShowGrapgh(crowd_gender.transStrPhenotype(env))
+#Visualization.ShowGrapgh(crowd_gender.transStrPhenotype(env))
+
+gene_sex = Gene("A", sex_chromosome = "X")
+gene_normal = Gene("B", "b")
+dict_sitest = Genotype(gene_sex, gene_normal).genGamete()
+
+test = str(SexGeneGroup("X", ["A", "a"]))
+test2 = str(SexGeneGroup("Y", []))
+print(str(SexGeneGroup.fromString(test)))
+print(str(SexGeneGroup.fromString(test2)))

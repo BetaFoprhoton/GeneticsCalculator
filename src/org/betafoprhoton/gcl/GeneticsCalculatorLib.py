@@ -2,34 +2,64 @@ from fractions import Fraction
 from itertools import product
 from functools import *
 from enum import Enum
-import functools
+import functools, re
+import Util
 from operator import mul
 from Util import *
+from typing import *
+
+class SexGeneGroup:
+    def __init__(self, sex_chromosome: str, alleles: list[str]):
+        self.sex_chromosome = sex_chromosome
+        self.alleles = tuple(alleles)
+
+    def __str__(self):
+        return "SexGeneGroup{" + "sex_chromosome: \"" + self.sex_chromosome + "\", alleles: " + str(self.alleles) + "}"
+
+    def __eq__(self, o):
+        return (self.sex_chromosome == o.sex_chromosome) and (sorted(self.alleles) == sorted(o.alleles))
+
+    def __hash__(self):
+        return hash((self.sex_chromosome, tuple(sorted(self.alleles))))
+
+    @classmethod
+    def fromString(cls, s: str) -> "SexGeneGroup":
+        """从字符串反序列化为 SexGeneGroup 实例"""
+        # 定义正则表达式模式匹配字符串格式
+        pattern = r"SexGeneGroup\{sex_chromosome: \"([^,]+)\", alleles: \((.*)\)\}"
+        # 尝试匹配字符串
+        match = re.match(pattern, s)
+        if not match:
+            raise ValueError(f"Invalid SexGeneGroup string format: {s}")
+        # 提取匹配的组
+        sex_chromosome = match.group(1).strip()
+        alleles_str = match.group(2)
+        # 解析等位基因列表
+        alleles = []
+        if alleles_str:  # 处理空列表情况
+            # 分割字符串并去除引号
+            alleles = [item.strip().strip("'\"") for item in alleles_str.split(",")]
+        return cls(sex_chromosome, alleles)
 
 class Gene:
-    def __init__(self, *alleles: str, name: str = "", description: str = ""):
+    def __init__(self, *alleles: str, name: str = "", description: str = "", sex_chromosome = ""):
         self.name = name
         self.alleles = alleles
+        self.sex_chromosome = sex_chromosome
         
     def gen(self) -> dict:
         group = {}
         for allele in self.alleles:
-            proportion = 1 #暂时
-            if proportion > 1:
-                raise ValueError("proportion cannot bigger than 1")
-            if group.get(allele, "null") == "null":
-                group[allele] = proportion
+            if self.sex_chromosome == "":
+                group[allele] = 1
             else:
-                group[allele] += proportion
+                group[SexGeneGroup(sex_chromosome = self.sex_chromosome, alleles = self.alleles)] = 1
         return unifiedDenominator(group)
 
 class Gender(Enum):
     Female = "Female"
     Male = "Male"
     Unknown = "Unknown"
-        
-class GenderGene(Gene):
-    pass
 
 class Genotype:
     def __init__(self, *genes: Gene):
@@ -37,10 +67,12 @@ class Genotype:
     
     def __eq__(self, other):
         return self.genes == other.genes
+
+    def judgeGender(self, env) -> Gender:
+        return env.judgeGender(self)
         
     def genGamete(self) -> dict:
         dicts = [gene.gen() for gene in self.genes]
-    
         # 1. 准备每个字典的键值对列表（保持顺序）
         result = {}
         items_list = []
@@ -48,30 +80,27 @@ class Genotype:
             # 对每个字典，转换为(键, 值)元组列表
             # 注意：这里使用sorted()确保顺序一致性
             items_list.append(sorted(d.items()))
-        
         # 2. 计算所有字典项的笛卡尔积
         for combination in product(*items_list):
             # combination是元组
-            
             # 3. 提取键列表和值列表
             keys = [item[0] for item in combination]  # ['A', 'X', 'P']
             values = [item[1] for item in combination]  # [Fraction(1,2), ...]
-            
             # 4. 计算所有Fraction的乘积
             product_value = reduce(mul, values, Fraction(1, 1))
-            
             # 5. 使用元组作为键（列表不可哈希）
             result[tuple(keys)] = product_value
         return result
 
-
 class GeneticsEnv:
     def __init__(self):
-        self.alleles_dom_info = [] #相对显隐性关系
-        self.alleles_group_info = {} #等位基因关系
-        self.lethal_func_info = []
-        self.pheno_func_info = []
-        self.group_count = 0
+        self.alleles_dom_info: list[dict] = [] # 相对显隐性关系, dict的keys是alleles, values是相对显隐性
+        self.alleles_group_info = {} # 等位基因关系, dict的keys是gene整体, values决定此组是否放在前面
+        self.lethal_func_info: list[Callable[list[str], Fraction]] = [] # 基因型致死函数列表
+        self.pheno_func_info: list[Callable[list[str], str]] = [] # 表型型判断函数列表
+        self.sex_judgment_func: Callable[[list[str]], Gender] # 性别决定，有且仅有一个函数
+        self.sex_chromosome_info = [] # 此环境下生物的性染色体定义列表, 均为str类型
+        self.group_count = 0 # 用于分组的计数器
 
     def printAllelesInfo(self):
         print("Relative hidden relationship between alleles:")
@@ -90,18 +119,24 @@ class GeneticsEnv:
             count += 1
         self.alleles_dom_info.append(dom_dict)
         self.group_count += 1
+        
+    def defGenderJudgmentLaw(self, func: Callable[[list[str]], Gender]):
+        self.sex_judgment = func
     
-    def defGenderAllele(self, *tuple):
-        pass
+    def judgeGender(self, genotype: Genotype) -> Gender:
+        geno_str_list = []
+        for gene in genotype.genes:
+            geno_str_list += gene.alleles
+        return self.sex_judgment_func(geno_str_list)
+
+    def defSexChromosome(*chromosomes: str):
+        self.sex_chromosome_info += chromosomes
 
     def defGenotypeLethal(self, *func):
         self.lethal_func_info += func
 
     def defPhenotypeTransLaw(self, *func, priority = 0):
         self.pheno_func_info += func
-
-    def defGenderJudgmentLaw(self, *func, priority = 0):
-        pass
 
     def toPhenotype(self, str_gene_list: list[str]) -> tuple[str]:
         pheno_list = []
@@ -161,8 +196,7 @@ class GeneticsEnv:
         return "".join(self.toGenotype(gene_list))
 
 class Population:
-    genotype_dict = {}
-    def __init__(self, genotype_dict):
+    def __init__(self, genotype_dict: dict):
         self.genotype_dict = genotype_dict
     
     def transStrGenotype(self, env: GeneticsEnv) -> dict:
@@ -181,36 +215,34 @@ class Population:
                 pheno_dict[phenotype] = geno_item[1]
             else:
                 pheno_dict[phenotype] += geno_item[1]
-        
         return pheno_dict
-    
+
     def printGenotypeInfo(self, env: GeneticsEnv):
         geno_dict = self.transStrGenotype(env)
         for genotype in geno_dict.items():
-            print(genotype[0], ": ", genotype[1].numerator, "/", genotype[1].denominator, end = "\t")
+            print(genotype[0], ": ", str(genotype[1]), end = "\t")
+        print()
 
     def printPhenotypeInfo(self, env: GeneticsEnv):
         pheno_dict = self.transStrPhenotype(env)
         for phenotype in pheno_dict.items():
-            print(phenotype[0], ": ", phenotype[1].numerator, "/", phenotype[1].denominator, end = "\t")
-
-def alt_sort_key(s) -> tuple:
-    # 0 - 大写字母, 1 - 小写字母
-    case_order = 0 if s.isupper() else 1
-    return (s.lower(), case_order)
+            print(phenotype[0], ": ", str(phenotype[1]), end = "\t")
+        print()
 
 def cross(geno1: Genotype, geno2: Genotype, env: GeneticsEnv) -> Population:
+    # 计算基因型及其占比
     gamete_dict1 = geno1.genGamete()
     gamete_dict2 = geno2.genGamete()
     crowd = {}
     for gamete_item1 in gamete_dict1.items():
         for gamete_item2 in gamete_dict2.items():
-            genotype = tuple(sorted(list(gamete_item1[0]) + list(gamete_item2[0]), key = alt_sort_key))
+            genotype = tuple(sorted(list(gamete_item1[0]) + list(gamete_item2[0]), key = Util.alt_sort_key))
             proportion = gamete_item1[1] * gamete_item2[1]
             if crowd.get(genotype, "null") == "null":
                 crowd[genotype] = proportion
             else:
                 crowd[genotype] += proportion
+    # 计算致死及其占比
     result = {}
     for geno_item in crowd.items():
         new_chance = geno_item[1] * env.genGenotypeLethanlChance(geno_item[0])
