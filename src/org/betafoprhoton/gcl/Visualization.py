@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
-import matplotlib
 
-def ShowGrapgh(crowd_dict: dict, font: str = "Alibaba PuHuiTi 2.0"):
+def ShowGrapgh(crowd_dict: dict, font: str = "Microsoft YaHei"):
     values = [float(x) for x in crowd_dict.values()]
     str_values = [str(value) for value in list(crowd_dict.values())]
 

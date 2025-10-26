@@ -8,13 +8,13 @@ from operator import mul
 from Util import *
 from typing import *
 
-class SexGeneGroup:
-    def __init__(self, sex_chromosome: str, alleles: list[str]):
-        self.sex_chromosome = sex_chromosome
+class Chromosome:
+    def __init__(self, alleles: list[str], sex_chromosome: str = "None"):
         self.alleles = tuple(alleles)
+        self.sex_chromosome = sex_chromosome
 
     def __str__(self):
-        return "SexGeneGroup{" + "sex_chromosome: \"" + self.sex_chromosome + "\", alleles: " + str(self.alleles) + "}"
+        return "Chromosome{alleles: \"" + str(self.alleles) + "\", sex_chromosome: \"" + self.sex_chromosome + "\"}"
 
     def __eq__(self, o):
         return (self.sex_chromosome == o.sex_chromosome) and (sorted(self.alleles) == sorted(o.alleles))
@@ -22,15 +22,16 @@ class SexGeneGroup:
     def __hash__(self):
         return hash((self.sex_chromosome, tuple(sorted(self.alleles))))
 
+    # ISSUE HERE
     @classmethod
-    def fromString(cls, s: str) -> "SexGeneGroup":
-        """从字符串反序列化为 SexGeneGroup 实例"""
+    def fromString(cls, s: str) -> "Chromosome":
+        """从字符串反序列化为 Chromosome 实例"""
         # 定义正则表达式模式匹配字符串格式
-        pattern = r"SexGeneGroup\{sex_chromosome: \"([^,]+)\", alleles: \((.*)\)\}"
+        pattern = r"Chromosome\{alleles: \((.*)\), sex_chromosome: \"([^,]+)\"\}"
         # 尝试匹配字符串
         match = re.match(pattern, s)
         if not match:
-            raise ValueError(f"Invalid SexGeneGroup string format: {s}")
+            raise ValueError(f"Invalid Chromosome string format: {s}")
         # 提取匹配的组
         sex_chromosome = match.group(1).strip()
         alleles_str = match.group(2)
@@ -41,38 +42,23 @@ class SexGeneGroup:
             alleles = [item.strip().strip("'\"") for item in alleles_str.split(",")]
         return cls(sex_chromosome, alleles)
 
-class Gene:
-    def __init__(self, *alleles: str, name: str = "", description: str = "", sex_chromosome = ""):
-        self.name = name
-        self.alleles = alleles
-        self.sex_chromosome = sex_chromosome
-        
-    def gen(self) -> dict:
-        group = {}
-        for allele in self.alleles:
-            if self.sex_chromosome == "":
-                group[allele] = 1
-            else:
-                group[SexGeneGroup(sex_chromosome = self.sex_chromosome, alleles = self.alleles)] = 1
-        return unifiedDenominator(group)
-
 class Gender(Enum):
     Female = "Female"
     Male = "Male"
     Unknown = "Unknown"
 
 class Genotype:
-    def __init__(self, *genes: Gene):
-        self.genes = genes
+    def __init__(self, *chromosomes: Chromosome):
+        self.chromosomes = chromosomes
     
     def __eq__(self, other):
-        return self.genes == other.genes
+        return self.chromosomes == other.chromosomes
 
     def judgeGender(self, env) -> Gender:
         return env.judgeGender(self)
         
-    def genGamete(self) -> dict:
-        dicts = [gene.gen() for gene in self.genes]
+    def genGamete(self, env: "GeneticsEnv") -> dict:
+        dicts = [chromosome.gen() for chromosome in self.chromosomes]
         # 1. 准备每个字典的键值对列表（保持顺序）
         result = {}
         items_list = []

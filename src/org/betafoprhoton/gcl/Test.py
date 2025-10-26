@@ -42,7 +42,7 @@ crowd1.printPhenotypeInfo(env)
 crowd1.printGenotypeInfo(env)
 pheno_dict = crowd1.transStrPhenotype(env)
 
-#Visualization.ShowGrapgh(pheno_dict)
+Visualization.ShowGrapgh(pheno_dict)
 
 #print(Gender.Female == Gender.Male)
 
